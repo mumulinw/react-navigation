@@ -2,10 +2,12 @@
 
 import NavigationActions from './NavigationActions';
 import invariant from './utils/invariant';
+
 export default function(navigation) {
+  // 阻止连续点击
+  let debounce = true
   return {
     ...navigation,
-    // Go back from the given key, default to active key
     goBack: key => {
       let actualizedKey = key;
       if (key === undefined && navigation.state.key) {
@@ -19,37 +21,35 @@ export default function(navigation) {
         NavigationActions.back({ key: actualizedKey })
       );
     },
-    // Go back from the parent key. If this is a nested stack, the entire
-    // stack will be dismissed.
-    dismiss: () => {
-      let parent = navigation.dangerouslyGetParent();
-      if (parent && parent.state) {
-        return navigation.dispatch(
-          NavigationActions.back({ key: parent.state.key })
-        );
-      } else {
-        return false;
-      }
-    },
     navigate: (navigateTo, params, action) => {
-      if (typeof navigateTo === 'string') {
-        return navigation.dispatch(
-          NavigationActions.navigate({ routeName: navigateTo, params, action })
+      if (debounce) {
+        debounce = false;
+        if (typeof navigateTo === 'string') {
+          setTimeout(() => {
+            debounce = true
+          }, 500);
+          return navigation.dispatch(
+            NavigationActions.navigate({ routeName: navigateTo, params, action })
+          );
+        }
+        invariant(
+          typeof navigateTo === 'object',
+          'Must navigateTo an object or a string'
         );
+        invariant(
+          params == null,
+          'Params must not be provided to .navigate() when specifying an object'
+        );
+        invariant(
+          action == null,
+          'Child action must not be provided to .navigate() when specifying an object'
+        );
+        setTimeout(() => {
+          debounce = true
+        }, 500);
+        return navigation.dispatch(NavigationActions.navigate(navigateTo));
       }
-      invariant(
-        typeof navigateTo === 'object',
-        'Must navigateTo an object or a string'
-      );
-      invariant(
-        params == null,
-        'Params must not be provided to .navigate() when specifying an object'
-      );
-      invariant(
-        action == null,
-        'Child action must not be provided to .navigate() when specifying an object'
-      );
-      return navigation.dispatch(NavigationActions.navigate(navigateTo));
+      return false
     },
     pop: (n, params) =>
       navigation.dispatch(
@@ -97,9 +97,5 @@ export default function(navigation) {
           key: navigation.state.key,
         })
       ),
-
-    openDrawer: () => navigation.dispatch(NavigationActions.openDrawer()),
-    closeDrawer: () => navigation.dispatch(NavigationActions.closeDrawer()),
-    toggleDrawer: () => navigation.dispatch(NavigationActions.toggleDrawer()),
   };
 }
